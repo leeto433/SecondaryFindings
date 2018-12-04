@@ -129,7 +129,6 @@ while read -u 3 -r subject; do # -r flag prevents backslash character from being
 		fi
 		
 		
-		
 		# selects lines with EP 
 		if [[ ${variations} =~ "EP" ]]; then	
 			if [ ! -z $transcripts ]; then
