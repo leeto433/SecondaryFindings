@@ -2,6 +2,23 @@
 
 BASEDIR=$(dirname $0)
 
+while [ -z ${vcf} ] || [[ ! -f ${vcf} ]]; do 
+	echo -e "Specify the full path to a compressed VCF file that contains sequence data for your subjects.\n"
+	read -e -p "Provide the full path, or q to quit, and press [RETURN]: " vcf
+	if [[ ${vcf} == "q" ]]; then exit ; fi
+	if [ ! -z ${vcf} ] && [[ ! -f ${vcf} ]]; then 
+		echo -e "\nCan't find ${vcf}\n"
+	fi
+	if [ -z ${vcf} ]; then 
+		echo -e "\nNo file specified\n"
+	fi
+done
+
+samples
+disorders
+ped
+phase for recessive disorders
+
 # This line allows the option to only look for variants that are of known phase only or variants that are both known and unknown phase
 export includephase=unphased  # Options are phased or unphased
 
@@ -12,8 +29,10 @@ export ped=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/Meta/Ped.txt
 # Creates a variable that indicates the file that has the information on the diseases that we are looking for
 export disorders=/resource/domains/STUDENT/leeto433/diseases3.txt 
 
+export ${vcf}
+
 #Creates a vcf variable that indicates which vcf file to use
-export vcf=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/GRCh37/VariantCalls/AV5UTRs/20180505_AV5UTRs_VariantCalls/20180505_AV5UTRs_VariantCalls_Split_Annotated_1/20180505_AV5UTRs_VariantCalls_Split_ann.vcf.gz
+#export vcf=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/GRCh37/VariantCalls/AV5UTRs/20180505_AV5UTRs_VariantCalls/20180505_AV5UTRs_VariantCalls_Split_Annotated_1/20180505_AV5UTRs_VariantCalls_Split_ann.vcf.gz
 export samples="3075,3447,3690,3412"
 # export vcf=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/GRCh37/VariantCalls/SeqCapEZ2/20180517_SeqCapEZ2_VariantCalls/20180517_SeqCapEZ2_VariantCalls_Split_Annotated_1/20180517_SeqCapEZ2_VariantCalls_Split_ann.vcf.gz
 # export samples="1203"
@@ -52,7 +71,7 @@ mkdir -p ${project}
 # Go to the directory that was just created
 cd $project 
 # Create a directory for slurm output
-mkdir -p slurm 
+mkdir -p ${project}/slurm 
 
 # Clear any modules that may already have been loaded. Some modules may interfere with BCFtools
 # BCFtools is a program that allows us to work with vcf files
@@ -90,12 +109,13 @@ if [ ! -f $project/allsamples.list ]; then
 	$(which bcftools) query -l ${vcf} > ${project}/allsamples.list 
 fi
 # make an array of the sample IDs that will be processed
-export SAMPLEARRAY=($(cat ${inputsamples} | tr "\n" " "))
+export SAMPLESTRING=$(cat ${inputsamples} | tr "\n" ",")
+SAMPLEARRAY=($(cat ${inputsamples} | tr "\n" " ")) 
 # the number of entries in samplearray - should be the number of samples to be analysed
 export NUMSAMPLES=${#SAMPLEARRAY[@]}
 
-#sbatch -J Secondary_Sample_Analysis ${mailme} --array 1-${NUMSAMPLES}%6 ${BASEDIR}/secondary2.sl
+sbatch -J Secondary_Sample_Analysis ${mailme} --array 1-${NUMSAMPLES}%6 ${BASEDIR}/secondary2.sl
 
-echo "${SAMPLEARRAY[@]}"
-echo "${NUMSAMPLES}"
-echo "${mailme}"
+echo "Sample array is ${SAMPLEARRAY[@]}"
+#echo "${NUMSAMPLES}"
+#echo "${mailme}"
