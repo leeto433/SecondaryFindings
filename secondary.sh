@@ -1,5 +1,7 @@
 #!/bin/bash
 
+BASEDIR=$(dirname $0)
+
 # This line allows the option to only look for variants that are of known phase only or variants that are both known and unknown phase
 export includephase=unphased  # Options are phased or unphased
 
@@ -52,8 +54,25 @@ cd $project
 # Create a directory for slurm output
 mkdir -p slurm 
 
+# Clear any modules that may already have been loaded. Some modules may interfere with BCFtools
+# BCFtools is a program that allows us to work with vcf files
+module purge 
+# BCFtools is a program that allows us to work with vcf files
+module load BCFtools
+# If the allsamples.list file does not already exist, then create the file which contains a list of the sample IDs. The -f flag tests whether the file exists and is a regular file
+if [ ! -f $project/allsamples.list ]; then
+	# query -l in bcftools prints list of sample IDs only
+	$(which bcftools) query -l ${vcf} > ${project}/allsamples.list 
+fi
+
 # specifies samples to analyse for secondary findings, set samples to empty to analyse all the samples
-if [[ ! -z ${samples ]]; then
+if [[ ! -z ${samples} ]]; then
+	for i in $(echo ${samples} | tr "," " "); do
+		if ! grep -qx "${i}" ${project}/allsamples.list; then
+			echo -e "${i} cannot be found in ${vcf}"
+			exit
+		fi
+	done
 	echo ${samples} | tr "," "\n" > ${project}/selectedsamples.list
 	inputsamples=${project}/selectedsamples.list
 else
@@ -74,3 +93,9 @@ fi
 export SAMPLEARRAY=($(cat ${inputsamples} | tr "\n" " "))
 # the number of entries in samplearray - should be the number of samples to be analysed
 export NUMSAMPLES=${#SAMPLEARRAY[@]}
+
+#sbatch -J Secondary_Sample_Analysis ${mailme} --array 1-${NUMSAMPLES}%6 ${BASEDIR}/secondary2.sl
+
+echo "${SAMPLEARRAY[@]}"
+echo "${NUMSAMPLES}"
+echo "${mailme}"
