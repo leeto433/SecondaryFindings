@@ -16,6 +16,10 @@ while [ -z ${vcf} ] || [[ ! -f ${vcf} ]]; do
 done
 export vcf
 
+
+
+
+
 # Prompts user to specify file containing diseases and genes to search for
 while [ -z ${disorders} ] || [[ ! -f ${disorders} ]]; do 
 	echo -e "\nSpecify the full path to a text file containing the diseases and genes you want to search for\n"
@@ -29,6 +33,12 @@ while [ -z ${disorders} ] || [[ ! -f ${disorders} ]]; do
 	fi	
 done
 export disorders
+
+
+
+
+
+
 
 # Prompts user to specify pedigree file
 while [ -z ${ped} ] || [[ ! -f ${ped} ]]; do 
@@ -45,11 +55,20 @@ done
 export ped
 
 
+
+
+
+
+
+
 # Prompts user to specify samples 
 read -e -p $'\nTo specify subjects to analyse, provide their IDs seperated by commas. If the sample IDs are in a file, then provide the full path. Otherwise, leave blank to analyse all subjects in the VCF file and press [RETURN]: ' samples
-# specifies samples to analyse for secondary findings, set samples to empty to analyse all the samples
+
+# If they specify subject ID numbers
 if [[ ! -z ${samples} ]] && [[ ! -f ${samples} ]]; then
+	# Creating a tempfile with list of samples
 	$(which bcftools) query -l ${vcf} > allsamplestempfile
+	#Checking that the ID is in VCF file
 	for i in $(echo ${samples} | tr "," " "); do
 		if ! grep -qx "${i}" allsamplestempfile; then
 			echo -e "\n${i} cannot be found in ${vcf}"
@@ -57,30 +76,42 @@ if [[ ! -z ${samples} ]] && [[ ! -f ${samples} ]]; then
 		fi
 	done
 	#echo ${samples} | tr "," "\n" > ${project}/selectedsamples.list
-	inputsamples=${project}/selectedsamples.list
+	#inputsamples=${project}/selectedsamples.list
 	rm allsamplestempfile
 	echo "Specified numbers"
-# else if they have specified a file	
+	
+# if they have specified a file	
 elif [[ ! -z ${samples} ]] && [[ -f ${samples} ]]; then
+	# Creating a tempfile with list of samples
 	$(which bcftools) query -l ${vcf} > allsamplestempfile
+	#Checking that the ID is in VCF file
 	for i in $(cat ${samples}); do 
 		if ! grep -qx "${i}" allsamplestempfile; then
 			echo -e "\n${i} cannot be found in ${vcf}"
 			exit
 		fi
 	done	
-	cat ${samples} > ${project}/selectedsamples.list
-	inputsamples=${project}/selectedsamples.list
+	#cat ${samples} > ${project}/selectedsamples.list
+	#inputsamples=${project}/selectedsamples.list
 	rm allsamplestempfile
 	echo "Specified a file"
+	
+# If they did not enter any information	
 elif [ -z ${samples} ]; then
 	inputsamples=${project}/allsamples.list	
 	echo "Left blank"
 fi
 
-echo ${samples}
-echo "end"
+cat ${samples}
+echo "exiting"
 exit
+
+
+
+
+
+
+
 
 phase for recessive disorders
 
