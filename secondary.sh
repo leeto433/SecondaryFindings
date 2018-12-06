@@ -54,15 +54,61 @@ while [ -z ${ped} ] || [[ ! -f ${ped} ]]; do
 done 
 export ped
 
+# Clear any modules that may already have been loaded. Some modules may interfere with BCFtools
+# BCFtools is a program that allows us to work with vcf files
+module purge 
+# BCFtools is a program that allows us to work with vcf files
+module load BCFtools
+# Creates a variable that contains sample ID list in vcf file
+allsamples=$($(which bcftools) query -l ${vcf})
 
 
-
-
+if [ -z ${samples} ]; then 
+	samples=walrus
+elif [ -f ${samples} ]; then
+	for i in $(cat ${samples}); do 
+		if ! $(echo -e "${allsamples}" | grep -qx "${i}"); then
+			echo -e "\nThe specified sample ${i} from the file ${samples} cannot be found in ${vcf}"
+			exit
+		fi
+	done
+else 
+	for i in $(echo "${samples}" | tr "," " "); do 
+		if ! $(echo -e "${allsamples}" | grep -qx "${i}"); then
+			echo -e "\nThe specified sample ${i} from your list cannot be found in ${vcf}"
+			exit
+		fi
+	done
+fi
 
 
 
 # Prompts user to specify samples 
-read -e -p $'\nTo specify subjects to analyse, provide their IDs seperated by commas. If the sample IDs are in a file, then provide the full path. Otherwise, leave blank to analyse all subjects in the VCF file and press [RETURN]: ' samples
+while [ ${samples} == walrus ]; do 
+	read -e -p $'\nTo specify subjects to analyse, provide their IDs seperated by commas. If the sample IDs are in a file, then provide the full path. Otherwise, leave blank to analyse all subjects in the VCF file and press [RETURN]: ' samples
+	if [[ ${samples} == "q" ]]; then 
+		exit
+	elif [ -f ${samples} ] && [ ! -z ${samples} ]; then
+		for i in $(cat ${samples}); do 
+			if ! $(echo -e "${allsamples}" | grep -qx "${i}"); then
+				echo -e "\nThe specified sample ${i} from the file ${samples} cannot be found in ${vcf}"
+				samples=walrus
+				break
+			fi
+		done
+	
+	elif [ ! -z ${samples} ]; then
+		for i in $(echo "${samples}" | tr "," " "); do 
+			if ! $(echo -e "${allsamples}" | grep -qx "${i}"); then
+				echo -e "\nThe specified sample ${i} from your list cannot be found in ${vcf}"
+				samples=walrus
+				break
+			fi
+		done
+	fi
+done
+
+
 
 # If they specify subject ID numbers
 if [[ ! -z ${samples} ]] && [[ ! -f ${samples} ]]; then
@@ -79,7 +125,7 @@ if [[ ! -z ${samples} ]] && [[ ! -f ${samples} ]]; then
 	#inputsamples=${project}/selectedsamples.list
 	rm allsamplestempfile
 	echo "Specified numbers"
-	
+
 # if they have specified a file	
 elif [[ ! -z ${samples} ]] && [[ -f ${samples} ]]; then
 	# Creating a tempfile with list of samples
@@ -95,13 +141,15 @@ elif [[ ! -z ${samples} ]] && [[ -f ${samples} ]]; then
 	#inputsamples=${project}/selectedsamples.list
 	rm allsamplestempfile
 	echo "Specified a file"
-	
+
 # If they did not enter any information	
 elif [ -z ${samples} ]; then
 	inputsamples=${project}/allsamples.list	
 	echo "Left blank"
 fi
 
+
+echo ${samples}
 cat ${samples}
 echo "exiting"
 exit
@@ -170,16 +218,22 @@ cd $project
 mkdir -p ${project}/slurm 
 
 
-# Clear any modules that may already have been loaded. Some modules may interfere with BCFtools
-# BCFtools is a program that allows us to work with vcf files
-module purge 
-# BCFtools is a program that allows us to work with vcf files
-module load BCFtools
-# If the allsamples.list file does not already exist, then create the file which contains a list of the sample IDs. The -f flag tests whether the file exists and is a regular file
-if [ ! -f $project/allsamples.list ]; then
-	# query -l in bcftools prints list of sample IDs only
-	$(which bcftools) query -l ${vcf} > ${project}/allsamples.list 
+if [[ ! -z ${samples} ]] && [[ -f ${samples} ]]; then
+	cp ${samples} ${project}/selectedsamples.list
+	inputsamples=${project}/selectedsamples.list
+# If they specify subject ID numbers
+elif [[ ! -z ${samples} ]]; then
+	echo ${samples} | tr "," "\n" > ${project}/selectedsamples.list
+	inputsamples=${project}/selectedsamples.list
+else
+	echo -e "${allsamples}" > ${project}/allsamples.list
+	inputsamples=${project}/allsamples.list
 fi
+
+
+
+
+
 # make an array of the sample IDs that will be processed
 export SAMPLESTRING=$(cat ${inputsamples} | tr "\n" ",")
 SAMPLEARRAY=($(cat ${inputsamples} | tr "\n" " ")) 
