@@ -2,21 +2,86 @@
 
 BASEDIR=$(dirname $0)
 
+# Prompts user to specify the VCF file
 while [ -z ${vcf} ] || [[ ! -f ${vcf} ]]; do 
 	echo -e "Specify the full path to a compressed VCF file that contains sequence data for your subjects.\n"
 	read -e -p "Provide the full path, or q to quit, and press [RETURN]: " vcf
-	if [[ ${vcf} == "q" ]]; then exit ; fi
+	if [[ ${vcf} == "q" ]]; then exit; fi
 	if [ ! -z ${vcf} ] && [[ ! -f ${vcf} ]]; then 
-		echo -e "\nCan't find ${vcf}\n"
+		echo -e "\n**********\nCan't find ${vcf}\n**********\n"
 	fi
 	if [ -z ${vcf} ]; then 
-		echo -e "\nNo file specified\n"
+		echo -e "\n**********\nNo file specified\n**********\n"
 	fi
 done
+export vcf
 
-samples
-disorders
-ped
+# Prompts user to specify file containing diseases and genes to search for
+while [ -z ${disorders} ] || [[ ! -f ${disorders} ]]; do 
+	echo -e "\nSpecify the full path to a text file containing the diseases and genes you want to search for\n"
+	read -e -p "Provide the full path, or q to quit, and press [RETURN]: " disorders
+	if [[ ${disorders} == "q" ]]; then exit; fi
+	if [ ! -z ${disorders} ] && [[ ! -f ${disorders} ]]; then 
+		echo -e "\n**********\nCan't find ${disorders}\n**********\n"
+	fi
+	if [ -z ${disorders} ]; then 
+		echo -e "\n**********\nNo file specified\n**********\n"
+	fi	
+done
+export disorders
+
+# Prompts user to specify pedigree file
+while [ -z ${ped} ] || [[ ! -f ${ped} ]]; do 
+	echo -e "\nSpecify the full path to the pedigree file\n"
+	read -e -p "Provide the full path, or q to quit, and press [RETURN]: " ped
+	if [[ ${ped} == "q" ]]; then exit; fi
+	if [ ! -z ${ped} ] && [[ ! -f ${ped} ]]; then 
+		echo -e "\n**********\nCan't find ${ped}\n**********\n"
+	fi
+	if [ -z ${ped} ]; then 
+		echo -e "\n**********\nNo file specified\n**********\n"
+	fi	
+done 
+export ped
+
+
+# Prompts user to specify samples 
+read -e -p $'\nTo specify subjects to analyse, provide their IDs seperated by commas. If the sample IDs are in a file, then provide the full path. Otherwise, leave blank to analyse all subjects in the VCF file and press [RETURN]: ' samples
+# specifies samples to analyse for secondary findings, set samples to empty to analyse all the samples
+if [[ ! -z ${samples} ]] && [[ ! -f ${samples} ]]; then
+	$(which bcftools) query -l ${vcf} > allsamplestempfile
+	for i in $(echo ${samples} | tr "," " "); do
+		if ! grep -qx "${i}" allsamplestempfile; then
+			echo -e "\n${i} cannot be found in ${vcf}"
+			exit
+		fi
+	done
+	#echo ${samples} | tr "," "\n" > ${project}/selectedsamples.list
+	inputsamples=${project}/selectedsamples.list
+	rm allsamplestempfile
+	echo "Specified numbers"
+# else if they have specified a file	
+elif [[ ! -z ${samples} ]] && [[ -f ${samples} ]]; then
+	$(which bcftools) query -l ${vcf} > allsamplestempfile
+	for i in $(cat ${samples}); do 
+		if ! grep -qx "${i}" allsamplestempfile; then
+			echo -e "\n${i} cannot be found in ${vcf}"
+			exit
+		fi
+	done	
+	cat ${samples} > ${project}/selectedsamples.list
+	inputsamples=${project}/selectedsamples.list
+	rm allsamplestempfile
+	echo "Specified a file"
+elif [ -z ${samples} ]; then
+	inputsamples=${project}/allsamples.list	
+	echo "Left blank"
+fi
+
+echo ${samples}
+echo "end"
+exit
+
 phase for recessive disorders
 
 # This line allows the option to only look for variants that are of known phase only or variants that are both known and unknown phase
@@ -73,30 +138,6 @@ cd $project
 # Create a directory for slurm output
 mkdir -p ${project}/slurm 
 
-# Clear any modules that may already have been loaded. Some modules may interfere with BCFtools
-# BCFtools is a program that allows us to work with vcf files
-module purge 
-# BCFtools is a program that allows us to work with vcf files
-module load BCFtools
-# If the allsamples.list file does not already exist, then create the file which contains a list of the sample IDs. The -f flag tests whether the file exists and is a regular file
-if [ ! -f $project/allsamples.list ]; then
-	# query -l in bcftools prints list of sample IDs only
-	$(which bcftools) query -l ${vcf} > ${project}/allsamples.list 
-fi
-
-# specifies samples to analyse for secondary findings, set samples to empty to analyse all the samples
-if [[ ! -z ${samples} ]]; then
-	for i in $(echo ${samples} | tr "," " "); do
-		if ! grep -qx "${i}" ${project}/allsamples.list; then
-			echo -e "${i} cannot be found in ${vcf}"
-			exit
-		fi
-	done
-	echo ${samples} | tr "," "\n" > ${project}/selectedsamples.list
-	inputsamples=${project}/selectedsamples.list
-else
-	inputsamples=${project}/allsamples.list	
-fi
 
 # Clear any modules that may already have been loaded. Some modules may interfere with BCFtools
 # BCFtools is a program that allows us to work with vcf files
