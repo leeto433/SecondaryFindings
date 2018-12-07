@@ -11,11 +11,16 @@ SAMPLEARRAY=($(echo "${SAMPLESTRING}" | tr "," " "))
 subject=${SAMPLEARRAY[$(( $SLURM_ARRAY_TASK_ID - 1 ))]}
 echo "subject is ${subject}"
 
+
 # Updates jobname on Slurm so we can see which subject we are processing
 scontrol update jobid=${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID} jobname=Secondary_${subject}	
 
 mkdir -p ${project}/${subject} # makes a folder for each subject
 cd ${project}/${subject}
+
+if [ -f ${project}/${subject}/${subject}.done ]; then 
+	exit
+fi
 
 father=$(cat $ped | awk -F"\t" -v OFS="\t" "\$2 ~ /^$subject\$/ {print \$3;exit;}") 
 mother=$(cat $ped | awk -F"\t" -v OFS="\t" "\$2 ~ /^$subject\$/ {print \$4;exit;}") 
@@ -73,6 +78,10 @@ while read -u 3 -r diseasegene;do
 	transcripts=$(echo -e "${diseasegene}" | awk -F"\t" '{print $10}')
 	minAF=$(echo -e "${diseasegene}" | awk -F"\t" '{print $11}')
 	
+	if [ -f ${project}/${subject}/${category}/${hgnc_symbol}/${hgnc_symbol}.done ]; then 
+		continue
+	fi
+		
 	expandedvariations=$(echo ${variations} | sed 's/KP/Known pathogenic/g' | sed 's/EP/Expected pathogenic/g' | sed 's/MODERATE/Moderate impact/g' | sed 's/LOW/Low impact/g' | sed 's/MODIFIER/Modifier/g')
 	expandedinheritance=$(echo ${inheritance} | sed 's/AD/Autosomal dominant/g' | sed 's/SD/Semi-dominant/g' | sed 's/AR/Autosomal recessive/g' | sed 's/XR/X-linked recessive/g' | sed 's/XD/X-linked dominant/g')
 			
@@ -82,6 +91,8 @@ while read -u 3 -r diseasegene;do
 	
 	mkdir -p ${project}/${subject}/${category}/${hgnc_symbol}
 	cd ${project}/${subject}/${category}/${hgnc_symbol}
+	
+
 	echo -e "${subject}" > ${project}/${subject}/${category}/${hgnc_symbol}/subject.txt
 	if [ ! -z ${mother} ]; then
 		echo -e "${mother}" > ${project}/${subject}/${category}/${hgnc_symbol}/mother.txt
@@ -813,8 +824,11 @@ while read -u 3 -r diseasegene;do
 		if [ -s ${project}/${subject}/${category}/${hgnc_symbol}/report.txt ]; then
 			cat ${project}/${subject}/${category}/${hgnc_symbol}/report.txt >> ${project}/${subject}/report.txt
 		fi
-	fi		
+	fi
+	touch ${project}/${subject}/${category}/${hgnc_symbol}/${hgnc_symbol}.done	
 done 3< ${disorders}
+touch ${project}/${subject}/${subject}.done
+
  
 # Writes a report to the project level
 #if [ -s ${project}/${subject}/report.txt ]; then
