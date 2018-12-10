@@ -19,7 +19,7 @@ mkdir -p ${project}/${subject} # makes a folder for each subject
 cd ${project}/${subject}
 
 if [ -f ${project}/${subject}/${subject}.done ]; then 
-	exit
+	exit 0
 fi
 
 father=$(cat $ped | awk -F"\t" -v OFS="\t" "\$2 ~ /^$subject\$/ {print \$3;exit;}") 
@@ -827,9 +827,9 @@ while read -u 3 -r diseasegene;do
 	fi
 	touch ${project}/${subject}/${category}/${hgnc_symbol}/${hgnc_symbol}.done	
 done 3< ${disorders}
-touch ${project}/${subject}/${subject}.done
+touch ${project}/${subject}/${subject}.done || exit 1
 
- 
+exit 0
 # Writes a report to the project level
 #if [ -s ${project}/${subject}/report.txt ]; then
 #	echo "${subject}" >> ${project}/report.txt
