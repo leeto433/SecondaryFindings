@@ -69,16 +69,21 @@ done
 
 
 # Prompts user to specify the VCF file
+# while the vcf variable is empty, or vcf variable is not a file, or vcf variable does not have vcf.gz extension. 
+# Will only enter while loop if vcf variable hasn't been set, or specified properly yet
 while [ -z ${vcf} ] || [[ ! -f ${vcf} ]] || [[ ! ${vcf} =~ ".vcf.gz" ]]; do 
 	echo -e "Specify the full path to a compressed VCF file that contains sequence data for your subjects.\n"
 	read -e -p "Provide the full path, or q to quit, and press [RETURN]: " vcf
 	if [[ ${vcf} == "q" ]]; then exit; fi
+	# if vcf variable is set but not a filename
 	if [ ! -z ${vcf} ] && [[ ! -f ${vcf} ]]; then 
 		echo -e "\n**********\nCan't find ${vcf}\n**********\n"
 	fi
+	#if vcf variable is set, is a filename but is not a vcf.gz file
 	if  [ ! -z ${vcf} ] && [[ -f ${vcf} ]] && [[ ! ${vcf} =~ ".vcf.gz" ]]; then
 		echo -e "\n**********\nFile specified is not right file type\n**********\n"	
 	fi
+	# if vcf variable is unset
 	if [ -z ${vcf} ]; then 
 		echo -e "\n**********\nNo file specified\n**********\n"
 	fi
@@ -273,9 +278,15 @@ SAMPLEARRAY=($(cat ${inputsamples} | tr "\n" " "))
 # the number of entries in samplearray - should be the number of samples to be analysed
 export NUMSAMPLES=${#SAMPLEARRAY[@]}
 
+#exit
+
+cmd1="sbatch -J Secondary_Sample_Analysis ${mailme} --array 1-${NUMSAMPLES}%6 ${BASEDIR}/secondary2.sl"
+secondary2_job=$(eval ${cmd1} | awk '{print $4}')
+
 exit
 
-sbatch -J Secondary_Sample_Analysis ${mailme} --array 1-${NUMSAMPLES}%6 ${BASEDIR}/secondary2.sl
+cmd2="sbatch -J Report_${project} --dependency=afterok:${secondary2_job} ${mailme} ${BASEDIR}/report.sl"
+eval ${cmd2}
 
 #echo "Sample array is ${SAMPLEARRAY[@]}"
 #echo "${NUMSAMPLES}"
