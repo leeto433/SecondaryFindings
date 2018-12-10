@@ -4,6 +4,39 @@ BASEDIR=$(dirname $0)
 defaultdisorders=${BASEDIR}/ACMG2.0.txt
 
 
+while getopts ":v:d:p:s:i:h" OPTION; do 
+	case $OPTION in 
+		v) 	
+			export vcf="${OPTARG}"
+			;;
+		d) 
+			export disorders="${OPTARG}"
+			;;
+		p)
+			export ped="${OPTARG}"
+			;;
+		s)
+			export samples="${OPTARG}"
+			;;
+		i)
+			export includephase="${OPTARG}"
+			;;
+		h)
+			usage
+			exit 0
+			;;
+		\?)
+			echo -e "\n**************\nInvalid option: ${OPTARG}\nFor valid options, use -h option\n**************\n"
+			exit 0
+			;;
+		:)
+			echo -e "\n**************\nOption ${OPTARG} requires an argument\n**************\n"
+			exit 0
+			;;
+	esac
+done	
+
+
 # Prompts user to specify the VCF file
 while [ -z ${vcf} ] || [[ ! -f ${vcf} ]]; do 
 	echo -e "Specify the full path to a compressed VCF file that contains sequence data for your subjects.\n"
@@ -23,6 +56,8 @@ export vcf
 
 if [ -z ${disorders} ]; then
 	disorders=walrus
+elif [ ${disorders} == "ACMG" ]; then
+	disorders=${defaultdisorders}
 elif [[ ! -f ${disorders} ]]; then
 	echo -e "Can't find ${disorders}"
 	exit
@@ -82,7 +117,7 @@ elif [ -f ${samples} ]; then
 			exit
 		fi
 	done
-else 
+elif [ ${samples} != "all" ]; then
 	for i in $(echo "${samples}" | tr "," " "); do 
 		if ! $(echo -e "${allsamples}" | grep -qx "${i}"); then
 			echo -e "\nThe specified sample ${i} from your list cannot be found in ${vcf}"
@@ -120,14 +155,19 @@ done
 
 
 
-
 # This line allows the option to only look for variants that are of known phase only or variants that are both known and unknown phase
 while [[ ${includephase} != "yes" ]] && [[ ${includephase} != "no" ]]; do 
+ 	echo -e "\nWhen considering variants to be considered as potential compound heterozygotes, do you wish to include unphased variants? \nIn this case, significant variants will be reported if two or more are present in the same gene, \nirrespective of whether they come from different parents."
 	echo -e "\nDo you wish to include unphased variants when considering potential compound heterozygotes in recessive disorders?"
 	# This may need a bit more explanation
 	read -e -p "Type yes to include unphased variants, and type no to exclude unphased variants, or press q to quit and press [RETURN]: " includephase
 	if [[ ${includephase} == "q" ]]; then exit; fi
 done
+if [[ ${includephase} == "yes" ]]; then
+	echo -e "\nUnphased variants will be included for consideration as compound heterozygotes\n"
+elif [[ ${includephase} == "no" ]]; then
+	echo -e "\nUnphased variants will not be included for consideration as compound heterozygotes\n"
+fi
 export includephase # yes means include unphased. no means do not include unphased variants. 
 
 
@@ -185,7 +225,7 @@ echo -e "${allsamples}" > ${project}/allsamples.list
 if [[ ! -z ${samples} ]] && [[ -f ${samples} ]]; then
 	cp ${samples} ${project}/selectedsamples.list
 # If they specify subject ID numbers
-elif [[ ! -z ${samples} ]]; then
+elif [[ ! -z ${samples} ]] && [[ ${samples} != "all" ]]; then
 	echo ${samples} | tr "," "\n" > ${project}/selectedsamples.list
 else
 	echo -e "${allsamples}" > ${project}/selectedsamples.list
