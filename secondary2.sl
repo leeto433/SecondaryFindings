@@ -425,7 +425,7 @@ while read -u 3 -r diseasegene;do
 				done	
 			done 4< ${project}/${subject}/${category}/${hgnc_symbol}/homselectedvariants.txt
 		fi
-		if [ ${includephase} == unphased ] || [[ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt  &&  -s ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt ]]; then
+		if [ ${includephase} == 'yes' ] || [[ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt  &&  -s ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt ]]; then
 		
 			# Writing maternal variants to report file
 			if [ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt ] && [[ $(($(wc -l < ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt) + $(wc -l < ${project}/${subject}/${category}/${hgnc_symbol}/unknownselectedvariants.txt))) > 0 ]]; then
@@ -672,7 +672,7 @@ while read -u 3 -r diseasegene;do
 			done 4< ${project}/${subject}/${category}/${hgnc_symbol}/homselectedvariants.txt
 		fi
 		
-		if [ ${includephase} == unphased ] || [[ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt  &&  -s ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt ]]; then
+		if [ ${includephase} == 'yes' ] || [[ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt  &&  -s ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt ]]; then
 			if [ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt ] && [[ $(($(wc -l < ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt) + $(wc -l < ${project}/${subject}/${category}/${hgnc_symbol}/unknownselectedvariants.txt))) > 0 ]]; then
 				echo -e "Maternal variants" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 				while read -u 4 -r line; do 
