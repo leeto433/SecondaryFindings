@@ -3,6 +3,37 @@
 BASEDIR=$(dirname $0)
 defaultdisorders=${BASEDIR}/ACMG2.0.txt
 
+function usage () {
+echo -e "\
+
+\nThis script creates slurm jobs to analyse samples for secondary findings. 
+
+usage: $0 options:
+
+-h 	Print full help/usage information.
+
+Optional:
+
+-v	Specify a VCF file.
+	Provide the full path. 
+
+-d 	Specify a file containing disease gene table.
+	Provide the full path. 
+	To use the default disease gene table following ACMG2.0 guidelines, 
+	type ACMG.
+
+-p 	Specify a file containing pedigree information.
+	Provide the full path.
+
+-s 	Specify individual samples to be analysed by entering sample IDs seperated by commas.
+	If sample IDs are in a file, then provide the full path.
+	If you wish to analyse all the samples, then type all.  
+	
+-i 	To include unphased variants when considering compound heterozygotes for recessive diseases,
+	type yes. 
+	To exclude unphased variants, type no. 
+"
+}
 
 while getopts ":v:d:p:s:i:h" OPTION; do 
 	case $OPTION in 
@@ -38,12 +69,15 @@ done
 
 
 # Prompts user to specify the VCF file
-while [ -z ${vcf} ] || [[ ! -f ${vcf} ]]; do 
+while [ -z ${vcf} ] || [[ ! -f ${vcf} ]] || [[ ! ${vcf} =~ ".vcf.gz" ]]; do 
 	echo -e "Specify the full path to a compressed VCF file that contains sequence data for your subjects.\n"
 	read -e -p "Provide the full path, or q to quit, and press [RETURN]: " vcf
 	if [[ ${vcf} == "q" ]]; then exit; fi
 	if [ ! -z ${vcf} ] && [[ ! -f ${vcf} ]]; then 
 		echo -e "\n**********\nCan't find ${vcf}\n**********\n"
+	fi
+	if  [ ! -z ${vcf} ] && [[ -f ${vcf} ]] && [[ ! ${vcf} =~ ".vcf.gz" ]]; then
+		echo -e "\n**********\nFile specified is not right file type\n**********\n"	
 	fi
 	if [ -z ${vcf} ]; then 
 		echo -e "\n**********\nNo file specified\n**********\n"
@@ -80,10 +114,7 @@ export disorders
 
 
 
-if [[ ! -z ${ped} ]] && [[ ! -f ${ped} ]]; then 
-	echo -e "Cant't find ${ped}"
-	exit
-fi
+
 # Prompts user to specify pedigree file
 while [ -z ${ped} ] || [[ ! -f ${ped} ]]; do 
 	echo -e "\nSpecify the full path to the pedigree file\n"
@@ -130,7 +161,7 @@ fi
 
 # Prompts user to specify samples 
 while [[ ${samples} == walrus ]]; do 
-	read -e -p $'\nTo specify subjects to analyse, provide their IDs seperated by commas. If the sample IDs are in a file, then provide the full path. Otherwise, leave blank to analyse all subjects in the VCF file and press [RETURN]: ' samples
+	read -e -p $'\nTo specify subjects to analyse, provide their IDs seperated by commas. \nIf the sample IDs are in a file, then provide the full path, or q to quit. \nOtherwise, leave blank to analyse all subjects in the VCF file and press [RETURN]: ' samples
 	if [[ ${samples} == "q" ]]; then 
 		exit
 	elif [ -f ${samples} ] && [ ! -z ${samples} ]; then
