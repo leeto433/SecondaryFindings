@@ -244,7 +244,7 @@ if [ -z ${email} ]; then
 	fi
 fi
 if [[ ${email} != "none" ]]; then
-	mailme="--mail-user ${email} --mail-type $MAIL_TYPE"
+	mailme="--mail-user=${email} --mail-type=$MAIL_TYPE"
 fi
 
 # Creates a variable so that we can create a directory that is located in the scratch folder of the person running the script, and removes the .vcf.gz suffix and appends _SecondaryFindings onto the end of the directory name
@@ -267,7 +267,7 @@ else
 	echo -e "${allsamples}" > ${project}/selectedsamples.list
 fi
 
-inputsamples=${project}/selectedsamples.list
+export inputsamples=${project}/selectedsamples.list
 echo -e "The sample IDs being investigated are \n$(cat ${inputsamples})"
 
 
@@ -283,7 +283,7 @@ export NUMSAMPLES=${#SAMPLEARRAY[@]}
 cmd1="sbatch -J Secondary_Sample_Analysis ${mailme} --array 1-${NUMSAMPLES}%6 ${BASEDIR}/secondary2.sl"
 secondary2_job=$(eval ${cmd1} | awk '{print $4}')
 
-exit
+#exit
 
 cmd2="sbatch -J Report_${project} --dependency=afterok:${secondary2_job} ${mailme} ${BASEDIR}/report.sl"
 eval ${cmd2}
