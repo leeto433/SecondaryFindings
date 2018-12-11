@@ -71,7 +71,7 @@ done
 # Prompts user to specify the VCF file
 # while the vcf variable is empty, or vcf variable is not a file, or vcf variable does not have vcf.gz extension. 
 # Will only enter while loop if vcf variable hasn't been set, or specified properly yet
-while [ -z ${vcf} ] || [[ ! -f ${vcf} ]] || [[ ! ${vcf} =~ ".vcf.gz" ]]; do 
+while [ -z ${vcf} ] || [[ ! -f ${vcf} ]] || [[ ! $(echo ${vcf} | grep '.vcf.gz$') =~ ".vcf.gz" ]]; do 
 	echo -e "Specify the full path to a compressed VCF file that contains sequence data for your subjects.\n"
 	read -e -p "Provide the full path, or q to quit, and press [RETURN]: " vcf
 	if [[ ${vcf} == "q" ]]; then exit; fi
@@ -80,7 +80,7 @@ while [ -z ${vcf} ] || [[ ! -f ${vcf} ]] || [[ ! ${vcf} =~ ".vcf.gz" ]]; do
 		echo -e "\n**********\nCan't find ${vcf}\n**********\n"
 	fi
 	#if vcf variable is set, is a filename but is not a vcf.gz file
-	if  [ ! -z ${vcf} ] && [[ -f ${vcf} ]] && [[ ! ${vcf} =~ ".vcf.gz" ]]; then
+	if  [ ! -z ${vcf} ] && [[ -f ${vcf} ]] && [[ ! $(echo ${vcf} | grep '.vcf.gz$') =~ ".vcf.gz" ]]; then
 		echo -e "\n**********\nFile specified is not right file type\n**********\n"	
 	fi
 	# if vcf variable is unset
