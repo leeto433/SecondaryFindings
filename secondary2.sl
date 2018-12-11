@@ -9,7 +9,7 @@
 
 SAMPLEARRAY=($(echo "${SAMPLESTRING}" | tr "," " "))
 subject=${SAMPLEARRAY[$(( $SLURM_ARRAY_TASK_ID - 1 ))]}
-echo "subject is ${subject}"
+
 
 
 # Updates jobname on Slurm so we can see which subject we are processing
@@ -293,7 +293,7 @@ while read -u 3 -r diseasegene;do
 		$(which bcftools) query -f '%CHROM\t%POS\t%REF\t%ALT\t%gnomADexomes_AF\t%gnomADgenomes_AF\t%clinVar_nonMNP_VariantType\t%clinVar_nonMNP_CLNHGVS\t%clinVar_nonMNP_CLNSIG\t%clinVar_MNP_VariantType\t%clinVar_MNP_CLNHGVS\t%clinVar_MNP_CLNSIG\tCSQ=%CSQ=CSQ\tBCSQ=%BCSQ=BCSQ[\t%TGT %AD]\n' ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf > ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.txt
 
 		if [ -s ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.txt ]; then
-			echo -e "${acmg_disease} ${hgnc_symbol} ${expandedinheritance} ${variations}" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
+			echo -e "${acmg_disease} ${hgnc_symbol} ${expandedinheritance} ${expandedvariations}" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 		fi
 
 		while read -u 4 -r line; do 
