@@ -5,26 +5,18 @@ defaultdisorders=${BASEDIR}/ACMG2.0.txt
 
 function usage () {
 echo -e "\
-
 \nThis script creates slurm jobs to analyse samples for secondary findings. 
-
 usage: $0 options:
-
 -h 	Print full help/usage information.
-
 Optional:
-
 -v	Specify a VCF file.
 	Provide the full path. 
-
 -d 	Specify a file containing disease gene table.
 	Provide the full path. 
 	To use the default disease gene table following ACMG2.0 guidelines, 
 	type ACMG.
-
 -p 	Specify a file containing pedigree information.
 	Provide the full path.
-
 -s 	Specify individual samples to be analysed by entering sample IDs seperated by commas.
 	If sample IDs are in a file, then provide the full path.
 	If you wish to analyse all the samples, then type all.  
@@ -76,8 +68,6 @@ done
 
 
 # Prompts user to specify the VCF file
-while [ -z ${vcf} ] || [[ ! -f ${vcf} ]]; do 
-	echo -e "Specify the full path to a compressed VCF file that contains sequence data for your subjects.\nNote: This may take a few seconds\n"
 # while the vcf variable is empty, or vcf variable is not a file, or vcf variable does not have vcf.gz extension. 
 # Will only enter while loop if vcf variable hasn't been set, or specified properly yet
 while [ -z ${vcf} ] || [[ ! -f ${vcf} ]] || [[ ! $(echo ${vcf} | grep '.vcf.gz$') =~ ".vcf.gz" ]]; do 
@@ -99,8 +89,6 @@ while [ -z ${vcf} ] || [[ ! -f ${vcf} ]] || [[ ! $(echo ${vcf} | grep '.vcf.gz$'
 done
 echo -e "\nThe VCF file being used is $(basename ${vcf})"
 export vcf
-
-
 
 
 
@@ -131,9 +119,6 @@ export disorders
 
 
 
-
-
-
 # Prompts user to specify pedigree file
 while [ -z ${ped} ] || [[ ! -f ${ped} ]]; do 
 	echo -e "\nSpecify the full path to the pedigree file\n"
@@ -158,67 +143,6 @@ module load BCFtools
 allsamples=$($(which bcftools) query -l ${vcf})
 
 
-
-
-
-
-# BCFtools is a program that allows us to work with vcf files
-module purge 
-# BCFtools is a program that allows us to work with vcf files
-module load BCFtools
-# Creates a variable so that we can create a directory that is located in the scratch folder of the person running the script, and removes the .vcf.gz suffix and appends _SecondaryFindings onto the end of the directory name
-export project=${SCRATCH}/$(basename ${vcf} .vcf.gz)_SecondaryFindings 
-# Creates the directory named as above. 'mkdir -p' means make parent directories as needed
-mkdir -p ${project} 
-# Go to the directory that was just created
-cd $project 
-
-
-
-
-# If the allsamples.list file does not already exist, then create the file which contains a list of the sample IDs. The -f flag tests whether the file exists and is a regular file
-if [ ! -f ${project}/allsamples.list ]; then
-	# query -l in bcftools prints list of sample IDs only
-	$(which bcftools) query -l ${vcf} > ${project}/allsamples.list 
-fi
-
-
-
-
-
-
-
-
-# Prompts user to specify samples 
-read -e -p $'\nTo specify subjects to analyse, provide their IDs seperated by commas. If the sample IDs are in a file, then provide the full path. Otherwise, leave blank to analyse all subjects in the VCF file and press [RETURN]: ' samples
-
-# If they specify subject ID numbers
-if [[ ! -z ${samples} ]] && [[ ! -f ${samples} ]]; then
-	#Checking that the ID is in VCF file
-	for i in $(echo ${samples} | tr "," " "); do
-		if ! grep -qx "${i}" ${project}/allsamples.list ; then
-			echo -e "\n${i} cannot be found in ${vcf}"
-			exit
-		fi
-	done
-	echo ${samples} | tr "," "\n" > ${project}/selectedsamples.list
-	inputsamples=${project}/selectedsamples.list
-		
-# if they have specified a file	
-elif [[ ! -z ${samples} ]] && [[ -f ${samples} ]]; then
-	#Checking that the ID is in VCF file
-	for i in $(cat ${samples}); do 
-		if ! grep -qx "${i}" ${project}/allsamples.list; then
-			echo -e "\n${i} cannot be found in ${vcf}"
-			exit
-		fi
-	done	
-	cat ${samples} > ${project}/selectedsamples.list
-	inputsamples=${project}/selectedsamples.list
-	
-# If they did not enter any information	
-elif [ -z ${samples} ]; then
-	inputsamples=${project}/allsamples.list	
 if [ -z ${samples} ]; then 
 	samples=walrus
 elif [ -f ${samples} ]; then
@@ -239,13 +163,6 @@ fi
 
 
 
-
-
-
-
-
-
-#phase for recessive disorders
 # Prompts user to specify samples 
 while [[ ${samples} == walrus ]]; do 
 	read -e -p $'\nTo specify subjects to analyse, provide their IDs seperated by commas. \nIf the sample IDs are in a file, then provide the full path, or q to quit. \nOtherwise, leave blank to analyse all subjects in the VCF file and press [RETURN]: ' samples
@@ -302,11 +219,6 @@ fi
 export haplotype 
 
 # Creates a variable that indicates the file that shows pedigree information for the cohort
-#export ped=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/Meta/Ped.txt 
-
-# Creates a variable that indicates the file that has the information on the diseases that we are looking for
-#export disorders=/resource/domains/STUDENT/leeto433/diseases3.txt 
-
 #ped=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/Meta/Ped.txt 
 
 # Creates a variable that indicates the file that has the information on the diseases that we are looking for
@@ -346,6 +258,14 @@ if [[ ${email} != "none" ]]; then
 	mailme="--mail-user=${email} --mail-type=$MAIL_TYPE"
 fi
 
+# Creates a variable so that we can create a directory that is located in the scratch folder of the person running the script, and removes the .vcf.gz suffix and appends _SecondaryFindings onto the end of the directory name
+export project=${SCRATCH}/$(basename ${vcf} .vcf.gz)_SecondaryFindings 
+# Creates the directory named as above. 'mkdir -p' means make parent directories as needed
+mkdir -p ${project} 
+# Go to the directory that was just created
+cd $project 
+# Create a directory for slurm output
+mkdir -p ${project}/slurm 
 
 echo -e "${allsamples}" > ${project}/allsamples.list
 
@@ -369,7 +289,7 @@ SAMPLEARRAY=($(cat ${inputsamples} | tr "\n" " "))
 # the number of entries in samplearray - should be the number of samples to be analysed
 export NUMSAMPLES=${#SAMPLEARRAY[@]}
 
-exit
+#exit
 
 cmd1="sbatch -J Secondary_Sample_Analysis ${mailme} --array 1-${NUMSAMPLES}%6 ${BASEDIR}/secondary2.sl"
 secondary2_job=$(eval ${cmd1} | awk '{print $4}')
@@ -379,9 +299,6 @@ secondary2_job=$(eval ${cmd1} | awk '{print $4}')
 cmd2="sbatch -J Report_${project} --dependency=afterok:${secondary2_job} ${mailme} ${BASEDIR}/report.sl"
 eval ${cmd2}
 
-echo "Sample array is ${SAMPLEARRAY[@]}"
-echo "${NUMSAMPLES}"
-echo "${mailme}"
 #echo "Sample array is ${SAMPLEARRAY[@]}"
 #echo "${NUMSAMPLES}"
 #echo "${mailme}"
