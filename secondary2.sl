@@ -9,13 +9,18 @@
 
 SAMPLEARRAY=($(echo "${SAMPLESTRING}" | tr "," " "))
 subject=${SAMPLEARRAY[$(( $SLURM_ARRAY_TASK_ID - 1 ))]}
-echo "subject is ${subject}"
+
+
 
 # Updates jobname on Slurm so we can see which subject we are processing
 scontrol update jobid=${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID} jobname=Secondary_${subject}	
 
 mkdir -p ${project}/${subject} # makes a folder for each subject
 cd ${project}/${subject}
+
+if [ -f ${project}/${subject}/${subject}.done ]; then 
+	exit 0
+fi
 
 father=$(cat $ped | awk -F"\t" -v OFS="\t" "\$2 ~ /^$subject\$/ {print \$3;exit;}") 
 mother=$(cat $ped | awk -F"\t" -v OFS="\t" "\$2 ~ /^$subject\$/ {print \$4;exit;}") 
@@ -73,6 +78,10 @@ while read -u 3 -r diseasegene;do
 	transcripts=$(echo -e "${diseasegene}" | awk -F"\t" '{print $10}')
 	minAF=$(echo -e "${diseasegene}" | awk -F"\t" '{print $11}')
 	
+	if [ -f ${project}/${subject}/${category}/${hgnc_symbol}/${hgnc_symbol}.done ]; then 
+		continue
+	fi
+		
 	expandedvariations=$(echo ${variations} | sed 's/KP/Known pathogenic/g' | sed 's/EP/Expected pathogenic/g' | sed 's/MODERATE/Moderate impact/g' | sed 's/LOW/Low impact/g' | sed 's/MODIFIER/Modifier/g')
 	expandedinheritance=$(echo ${inheritance} | sed 's/AD/Autosomal dominant/g' | sed 's/SD/Semi-dominant/g' | sed 's/AR/Autosomal recessive/g' | sed 's/XR/X-linked recessive/g' | sed 's/XD/X-linked dominant/g')
 			
@@ -82,6 +91,8 @@ while read -u 3 -r diseasegene;do
 	
 	mkdir -p ${project}/${subject}/${category}/${hgnc_symbol}
 	cd ${project}/${subject}/${category}/${hgnc_symbol}
+	
+
 	echo -e "${subject}" > ${project}/${subject}/${category}/${hgnc_symbol}/subject.txt
 	if [ ! -z ${mother} ]; then
 		echo -e "${mother}" > ${project}/${subject}/${category}/${hgnc_symbol}/mother.txt
@@ -92,7 +103,7 @@ while read -u 3 -r diseasegene;do
 	
 	# selects lines with KP
 	if [[ ${variations} =~ "KP" ]]; then	
-		known="((clinVar_nonMNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}|\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}&\") & clinVar_nonMNP_CLNSIG ~ \"Pathogenic/i\") | (clinVar_MNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_MNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_MNP_GENEINFO ~ \":${ncbi_gene}|\") & clinVar_MNP_CLNSIG ~ \"Pathogenic/i\"))"
+		known="((clinVar_nonMNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}|\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}&\") & clinVar_nonMNP_CLNSIG ~ \"Pathogenic/i\") | (clinVar_MNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_MNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_MNP_GENEINFO ~ \":${ncbi_gene}|\") & clinVar_MNP_CLNSIG ~ \"Pathogenic/i\") & GT[@subject.txt] = \"alt\")"
 	else
 		known=""
 	fi
@@ -112,12 +123,17 @@ while read -u 3 -r diseasegene;do
 					transcriptsearch="${transcriptsearch} | CSQ ~ \"|HIGH|[^|]*|[^|]*|[^|]*|${i}|\"" 
 				fi 
 			done
-			transcriptsearch="(${transcriptsearch})"
+			transcriptsearch="((${transcriptsearch}) & GT[@subject.txt] = \"alt\")"
 		else
-			transcriptsearch="CSQ ~ \"|HIGH|${hgnc_symbol}|\""
+			transcriptsearch="(CSQ ~ \"|HIGH|${hgnc_symbol}|\" & GT[@subject.txt] = \"alt\")"
 			
 		fi
-		expected="${transcriptsearch}"
+		expectedBCSQ=""
+		# Now look for compound variants using BCSQ
+		if [ ${haplotype} == "yes" ]; then	
+			expectedBCSQ=" | (INFO/BCSQ[*] ~ \"^[^\*]*frameshift\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_acceptor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_donor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_gained\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*start_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_ablation\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_amplification\.*|[${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\") & FORMAT/BCSQ[@subject.txt] > 0"
+		fi
+		expected="(${transcriptsearch}${expectedBCSQ})"
 	else
 		expected=""			
 	fi
@@ -136,9 +152,9 @@ while read -u 3 -r diseasegene;do
 					transcriptsearch="${transcriptsearch} | CSQ ~ \"|MODERATE|[^|]*|[^|]*|[^|]*|${i}|\"" 
 				fi 
 			done
-			transcriptsearch="(${transcriptsearch})"
+			transcriptsearch="((${transcriptsearch}) & GT[@subject.txt] = \"alt\")"
 		else
-			transcriptsearch="CSQ ~ \"|MODERATE|${hgnc_symbol}|\""
+			transcriptsearch="(CSQ ~ \"|MODERATE|${hgnc_symbol}|\" & GT[@subject.txt] = \"alt\")"
 			
 		fi
 		moderate="${transcriptsearch}"
@@ -159,9 +175,9 @@ while read -u 3 -r diseasegene;do
 					transcriptsearch="${transcriptsearch} | CSQ ~ \"|LOW|[^|]*|[^|]*|[^|]*|${i}|\"" 
 				fi 
 			done
-			transcriptsearch="(${transcriptsearch})"
+			transcriptsearch="((${transcriptsearch}) & GT[@subject.txt] = \"alt\")"
 		else
-			transcriptsearch="CSQ ~ \"|LOW|${hgnc_symbol}|\""
+			transcriptsearch="(CSQ ~ \"|LOW|${hgnc_symbol}|\" & GT[@subject.txt] = \"alt\")"
 			
 		fi
 		low="${transcriptsearch}"
@@ -182,9 +198,9 @@ while read -u 3 -r diseasegene;do
 					transcriptsearch="${transcriptsearch} | CSQ ~ \"|MODIFIER|[^|]*|[^|]*|[^|]*|${i}|\"" 
 				fi 
 			done
-			transcriptsearch="(${transcriptsearch})"
+			transcriptsearch="((${transcriptsearch}) & GT[@subject.txt] = \"alt\")"
 		else
-			transcriptsearch="CSQ ~ \"|MODIFIER|${hgnc_symbol}|\""
+			transcriptsearch="(CSQ ~ \"|MODIFIER|${hgnc_symbol}|\" & GT[@subject.txt] = \"alt\")"
 			
 		fi
 		modifier="${transcriptsearch}"
@@ -270,7 +286,7 @@ while read -u 3 -r diseasegene;do
 	
 				
 	# Filters for annotations from clinVar nonMNP file: OMIM phenotype number, and NCBI gene ID, and classification includes 'pathogenic', and subjects genotype must contain alternate allele. Also specifies input and output file
-	cmd="$(which bcftools) filter --include '${minAFfilter} ${expression} & GT[@subject.txt] = \"alt\"' ${project}/${subject}/subset.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf" 
+	cmd="$(which bcftools) filter --include '${minAFfilter} ${expression}' ${project}/${subject}/subset.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf" 
 	echo "${cmd}"
 	eval ${cmd} || exit 1$?
 		
@@ -282,7 +298,7 @@ while read -u 3 -r diseasegene;do
 		$(which bcftools) query -f '%CHROM\t%POS\t%REF\t%ALT\t%gnomADexomes_AF\t%gnomADgenomes_AF\t%clinVar_nonMNP_VariantType\t%clinVar_nonMNP_CLNHGVS\t%clinVar_nonMNP_CLNSIG\t%clinVar_MNP_VariantType\t%clinVar_MNP_CLNHGVS\t%clinVar_MNP_CLNSIG\tCSQ=%CSQ=CSQ\tBCSQ=%BCSQ=BCSQ[\t%TGT %AD]\n' ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf > ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.txt
 
 		if [ -s ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.txt ]; then
-			echo -e "${acmg_disease} ${hgnc_symbol} ${expandedinheritance} ${variations}" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
+			echo -e "${acmg_disease} ${hgnc_symbol} ${expandedinheritance} ${expandedvariations}" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 		fi
 
 		while read -u 4 -r line; do 
@@ -306,7 +322,7 @@ while read -u 3 -r diseasegene;do
 					if [ $count == 0 ]; then
 						echo -e "\tVEP Consequences (CSQ)" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 					fi
-					echo "${i}" | grep "^[^|]*|[^|]*|[^|]*|${hgnc_symbol}|" | sed 's/^[^|]*|\([^|]*\)|[^|]*|\([^|]*\)|[^|]*|[^|]*|\([^|]*\)|[^|]*|[^|]*|[^|]*|\([^|]*\)|\([^|]*\)|.*$/\t\t\1\t\2\t\3\t\4\t\5/' >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
+					echo "${i}" | grep "^[^|]*|[^|]*|[^|]*|${hgnc_symbol}|" | sed 's/^[^|]*|\([^|]*\)|\([^|]*\)|\([^|]*\)|[^|]*|[^|]*|\([^|]*\)|[^|]*|[^|]*|[^|]*|\([^|]*\)|\([^|]*\)|.*$/\t\t\1\t\2\t\3\t\4\t\5\t\6/' >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 					let "count++"
 				done		
 			else
@@ -315,7 +331,7 @@ while read -u 3 -r diseasegene;do
 					if [ $count == 0 ]; then
 						echo -e "\tVEP Consequences (CSQ)" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 					fi
-					echo "${csq}" | grep "|${i}|" | sed 's/^.*[^|]*|\([^|]*\)|[^|]*|\([^|]*\)|[^|]*|[^|]*|\('${i}'\)|[^|]*|[^|]*|[^|]*|\([^|]*\)|\([^|]*\)|.*$/\t\t\1\t\2\t\3\t\4\t\5/' >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
+					echo "${csq}" | grep "|${i}|" | sed 's/^.*[^|]*|\([^|]*\)|\([^|]*\)|\([^|]*\)|[^|]*|[^|]*|\('${i}'\)|[^|]*|[^|]*|[^|]*|\([^|]*\)|\([^|]*\)|.*$/\t\t\1\t\2\t\3\t\4\t\5\t\6/' >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 					let "count++"
 				done		
 			fi		
@@ -414,7 +430,7 @@ while read -u 3 -r diseasegene;do
 				done	
 			done 4< ${project}/${subject}/${category}/${hgnc_symbol}/homselectedvariants.txt
 		fi
-		if [ ${includephase} == unphased ] || [[ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt  &&  -s ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt ]]; then
+		if [ ${includephase} == 'yes' ] || [[ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt  &&  -s ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt ]]; then
 		
 			# Writing maternal variants to report file
 			if [ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt ] && [[ $(($(wc -l < ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt) + $(wc -l < ${project}/${subject}/${category}/${hgnc_symbol}/unknownselectedvariants.txt))) > 0 ]]; then
@@ -661,7 +677,7 @@ while read -u 3 -r diseasegene;do
 			done 4< ${project}/${subject}/${category}/${hgnc_symbol}/homselectedvariants.txt
 		fi
 		
-		if [ ${includephase} == unphased ] || [[ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt  &&  -s ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt ]]; then
+		if [ ${includephase} == 'yes' ] || [[ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt  &&  -s ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt ]]; then
 			if [ -s ${project}/${subject}/${category}/${hgnc_symbol}/matselectedvariants.txt ] && [[ $(($(wc -l < ${project}/${subject}/${category}/${hgnc_symbol}/patselectedvariants.txt) + $(wc -l < ${project}/${subject}/${category}/${hgnc_symbol}/unknownselectedvariants.txt))) > 0 ]]; then
 				echo -e "Maternal variants" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 				while read -u 4 -r line; do 
@@ -813,9 +829,12 @@ while read -u 3 -r diseasegene;do
 		if [ -s ${project}/${subject}/${category}/${hgnc_symbol}/report.txt ]; then
 			cat ${project}/${subject}/${category}/${hgnc_symbol}/report.txt >> ${project}/${subject}/report.txt
 		fi
-	fi		
+	fi
+	touch ${project}/${subject}/${category}/${hgnc_symbol}/${hgnc_symbol}.done	
 done 3< ${disorders}
- 
+touch ${project}/${subject}/${subject}.done || exit 1
+
+exit 0
 # Writes a report to the project level
 #if [ -s ${project}/${subject}/report.txt ]; then
 #	echo "${subject}" >> ${project}/report.txt
