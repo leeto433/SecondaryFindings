@@ -103,7 +103,7 @@ while read -u 3 -r diseasegene;do
 	
 	# selects lines with KP
 	if [[ ${variations} =~ "KP" ]]; then	
-		known="((clinVar_nonMNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}|\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}&\") & clinVar_nonMNP_CLNSIG ~ \"Pathogenic/i\") | (clinVar_MNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_MNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_MNP_GENEINFO ~ \":${ncbi_gene}|\") & clinVar_MNP_CLNSIG ~ \"Pathogenic/i\"))"
+		known="((clinVar_nonMNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}|\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}&\") & clinVar_nonMNP_CLNSIG ~ \"Pathogenic/i\") | (clinVar_MNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_MNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_MNP_GENEINFO ~ \":${ncbi_gene}|\") & clinVar_MNP_CLNSIG ~ \"Pathogenic/i\") & GT[@subject.txt] = \"alt\")"
 	else
 		known=""
 	fi
@@ -123,12 +123,17 @@ while read -u 3 -r diseasegene;do
 					transcriptsearch="${transcriptsearch} | CSQ ~ \"|HIGH|[^|]*|[^|]*|[^|]*|${i}|\"" 
 				fi 
 			done
-			transcriptsearch="(${transcriptsearch})"
+			transcriptsearch="((${transcriptsearch}) & GT[@subject.txt] = \"alt\")"
 		else
-			transcriptsearch="CSQ ~ \"|HIGH|${hgnc_symbol}|\""
+			transcriptsearch="(CSQ ~ \"|HIGH|${hgnc_symbol}|\" & GT[@subject.txt] = \"alt\")"
 			
 		fi
-		expected="${transcriptsearch}"
+		expectedBCSQ=""
+		# Now look for compound variants using BCSQ
+		if [ ${haplotype} == "yes" ]; then	
+			expectedBCSQ=" | (INFO/BCSQ[*] ~ \"^[^\*]*frameshift\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_acceptor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_donor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_gained\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*start_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_ablation\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_amplification\.*|[${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\") & FORMAT/BCSQ[@subject.txt] > 0"
+		fi
+		expected="(${transcriptsearch}${expectedBCSQ})"
 	else
 		expected=""			
 	fi
@@ -147,9 +152,9 @@ while read -u 3 -r diseasegene;do
 					transcriptsearch="${transcriptsearch} | CSQ ~ \"|MODERATE|[^|]*|[^|]*|[^|]*|${i}|\"" 
 				fi 
 			done
-			transcriptsearch="(${transcriptsearch})"
+			transcriptsearch="((${transcriptsearch}) & GT[@subject.txt] = \"alt\")"
 		else
-			transcriptsearch="CSQ ~ \"|MODERATE|${hgnc_symbol}|\""
+			transcriptsearch="(CSQ ~ \"|MODERATE|${hgnc_symbol}|\" & GT[@subject.txt] = \"alt\")"
 			
 		fi
 		moderate="${transcriptsearch}"
@@ -170,9 +175,9 @@ while read -u 3 -r diseasegene;do
 					transcriptsearch="${transcriptsearch} | CSQ ~ \"|LOW|[^|]*|[^|]*|[^|]*|${i}|\"" 
 				fi 
 			done
-			transcriptsearch="(${transcriptsearch})"
+			transcriptsearch="((${transcriptsearch}) & GT[@subject.txt] = \"alt\")"
 		else
-			transcriptsearch="CSQ ~ \"|LOW|${hgnc_symbol}|\""
+			transcriptsearch="(CSQ ~ \"|LOW|${hgnc_symbol}|\" & GT[@subject.txt] = \"alt\")"
 			
 		fi
 		low="${transcriptsearch}"
@@ -193,9 +198,9 @@ while read -u 3 -r diseasegene;do
 					transcriptsearch="${transcriptsearch} | CSQ ~ \"|MODIFIER|[^|]*|[^|]*|[^|]*|${i}|\"" 
 				fi 
 			done
-			transcriptsearch="(${transcriptsearch})"
+			transcriptsearch="((${transcriptsearch}) & GT[@subject.txt] = \"alt\")"
 		else
-			transcriptsearch="CSQ ~ \"|MODIFIER|${hgnc_symbol}|\""
+			transcriptsearch="(CSQ ~ \"|MODIFIER|${hgnc_symbol}|\" & GT[@subject.txt] = \"alt\")"
 			
 		fi
 		modifier="${transcriptsearch}"
@@ -281,7 +286,7 @@ while read -u 3 -r diseasegene;do
 	
 				
 	# Filters for annotations from clinVar nonMNP file: OMIM phenotype number, and NCBI gene ID, and classification includes 'pathogenic', and subjects genotype must contain alternate allele. Also specifies input and output file
-	cmd="$(which bcftools) filter --include '${minAFfilter} ${expression} & GT[@subject.txt] = \"alt\"' ${project}/${subject}/subset.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf" 
+	cmd="$(which bcftools) filter --include '${minAFfilter} ${expression}' ${project}/${subject}/subset.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf" 
 	echo "${cmd}"
 	eval ${cmd} || exit 1$?
 		
@@ -317,7 +322,7 @@ while read -u 3 -r diseasegene;do
 					if [ $count == 0 ]; then
 						echo -e "\tVEP Consequences (CSQ)" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 					fi
-					echo "${i}" | grep "^[^|]*|[^|]*|[^|]*|${hgnc_symbol}|" | sed 's/^[^|]*|\([^|]*\)|[^|]*|\([^|]*\)|[^|]*|[^|]*|\([^|]*\)|[^|]*|[^|]*|[^|]*|\([^|]*\)|\([^|]*\)|.*$/\t\t\1\t\2\t\3\t\4\t\5/' >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
+					echo "${i}" | grep "^[^|]*|[^|]*|[^|]*|${hgnc_symbol}|" | sed 's/^[^|]*|\([^|]*\)|\([^|]*\)|\([^|]*\)|[^|]*|[^|]*|\([^|]*\)|[^|]*|[^|]*|[^|]*|\([^|]*\)|\([^|]*\)|.*$/\t\t\1\t\2\t\3\t\4\t\5\t\6/' >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 					let "count++"
 				done		
 			else
@@ -326,7 +331,7 @@ while read -u 3 -r diseasegene;do
 					if [ $count == 0 ]; then
 						echo -e "\tVEP Consequences (CSQ)" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 					fi
-					echo "${csq}" | grep "|${i}|" | sed 's/^.*[^|]*|\([^|]*\)|[^|]*|\([^|]*\)|[^|]*|[^|]*|\('${i}'\)|[^|]*|[^|]*|[^|]*|\([^|]*\)|\([^|]*\)|.*$/\t\t\1\t\2\t\3\t\4\t\5/' >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
+					echo "${csq}" | grep "|${i}|" | sed 's/^.*[^|]*|\([^|]*\)|\([^|]*\)|\([^|]*\)|[^|]*|[^|]*|\('${i}'\)|[^|]*|[^|]*|[^|]*|\([^|]*\)|\([^|]*\)|.*$/\t\t\1\t\2\t\3\t\4\t\5\t\6/' >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 					let "count++"
 				done		
 			fi		
