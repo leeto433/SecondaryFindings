@@ -32,10 +32,14 @@ Optional:
 -i 	To include unphased variants when considering compound heterozygotes for recessive diseases,
 	type yes. 
 	To exclude unphased variants, type no. 
+	
+-b	To include compound variants using haplotype aware BCFtools BCSQ caller, 
+	type yes.
+	To exclude them, type no. 
 "
 }
 
-while getopts ":v:d:p:s:i:h" OPTION; do 
+while getopts ":v:d:p:s:i:hb:" OPTION; do 
 	case $OPTION in 
 		v) 	
 			export vcf="${OPTARG}"
@@ -51,6 +55,9 @@ while getopts ":v:d:p:s:i:h" OPTION; do
 			;;
 		i)
 			export includephase="${OPTARG}"
+			;;
+		b)
+			export haplotype="${OPTARG}"
 			;;
 		h)
 			usage
@@ -206,6 +213,18 @@ elif [[ ${includephase} == "no" ]]; then
 fi
 export includephase # yes means include unphased. no means do not include unphased variants. 
 
+# Ask if they want to use haplotype aware calls (BCFtools CSQ annotation)
+while [[ ${haplotype} != "yes" ]] && [[ ${haplotype} != "no" ]]; do
+	echo -e "\nDo you want to include consequences for compound variants, as determined by BCFtools haplotype aware caller that provides BCSQ annotations?"
+	read -e -p "Type yes to include compound variants, or no to exclude them, or press q to quit and press [RETURN]: " haplotype
+	if [[ ${haplotype} == "q" ]]; then exit; fi
+done
+if [[ ${haplotype} == "yes" ]]; then
+	echo -e "\nCompound variants will be included\n"
+elif [[ ${haplotype} == "no" ]]; then
+	echo -e "\nCompound variants will be excluded\n"
+fi
+export haplotype 
 
 # Creates a variable that indicates the file that shows pedigree information for the cohort
 #ped=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/Meta/Ped.txt 
