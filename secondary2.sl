@@ -286,9 +286,10 @@ while read -u 3 -r diseasegene;do
 	
 				
 	# Filters for annotations from clinVar nonMNP file: OMIM phenotype number, and NCBI gene ID, and classification includes 'pathogenic', and subjects genotype must contain alternate allele. Also specifies input and output file
-	cmd="$(which bcftools) filter --exclude '${transcriptsearch}' --include '${minAFfilter} ${expectedBCSQ}' ${project}/${subject}/subset.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf" 
+	cmd="$(which bcftools) filter --include '${minAFfilter} ${expectedBCSQ}' ${project}/${subject}/subset.vcf.gz -Oz -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants_included.vcf.gz" 
 	echo "${cmd}"
 	eval ${cmd} || exit 1$?
+	$(which bcftools) filter --exclude '${transcriptsearch}' ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants_included.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf
 		
 	if [ ${inheritance} == "AD" ] || [ ${inheritance} == "SD" ] || [ ${inheritance} == "XD" ]; then	
 		
