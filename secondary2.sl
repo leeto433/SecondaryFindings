@@ -131,7 +131,7 @@ while read -u 3 -r diseasegene;do
 		expectedBCSQ=""
 		# Now look for compound variants using BCSQ
 		if [ ${haplotype} == "yes" ]; then	
-			expectedBCSQ=" | (INFO/BCSQ[*] ~ \"^[^\*]*frameshift\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_acceptor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_donor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_gained\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*start_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_ablation\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_amplification\.*|[${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\") & FORMAT/BCSQ[@subject.txt] > 0"
+			expectedBCSQ="(INFO/BCSQ[*] ~ \"^[^\*]*frameshift\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_acceptor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_donor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_gained\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*start_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_ablation\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_amplification\.*|[${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\") & FORMAT/BCSQ[@subject.txt] > 0"
 		fi
 		expected="(${transcriptsearch}${expectedBCSQ})"
 	else
@@ -286,7 +286,7 @@ while read -u 3 -r diseasegene;do
 	
 				
 	# Filters for annotations from clinVar nonMNP file: OMIM phenotype number, and NCBI gene ID, and classification includes 'pathogenic', and subjects genotype must contain alternate allele. Also specifies input and output file
-	cmd="$(which bcftools) filter --include '${minAFfilter} ${expression}' ${project}/${subject}/subset.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf" 
+	cmd="$(which bcftools) filter --exclude '${transcriptsearch}' --include '${minAFfilter} ${expectedBCSQ}' ${project}/${subject}/subset.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf" 
 	echo "${cmd}"
 	eval ${cmd} || exit 1$?
 		

@@ -76,15 +76,12 @@ done
 
 
 # Prompts user to specify the VCF file
-<<<<<<< HEAD
 while [ -z ${vcf} ] || [[ ! -f ${vcf} ]]; do 
 	echo -e "Specify the full path to a compressed VCF file that contains sequence data for your subjects.\nNote: This may take a few seconds\n"
-=======
 # while the vcf variable is empty, or vcf variable is not a file, or vcf variable does not have vcf.gz extension. 
 # Will only enter while loop if vcf variable hasn't been set, or specified properly yet
 while [ -z ${vcf} ] || [[ ! -f ${vcf} ]] || [[ ! $(echo ${vcf} | grep '.vcf.gz$') =~ ".vcf.gz" ]]; do 
 	echo -e "Specify the full path to a compressed VCF file that contains sequence data for your subjects.\n"
->>>>>>> 538dd784390d6712391858a3a5e9a1caf222d6b6
 	read -e -p "Provide the full path, or q to quit, and press [RETURN]: " vcf
 	if [[ ${vcf} == "q" ]]; then exit; fi
 	# if vcf variable is set but not a filename
@@ -105,10 +102,8 @@ export vcf
 
 
 
-<<<<<<< HEAD
 
 
-=======
 if [ -z ${disorders} ]; then
 	disorders=walrus
 elif [ ${disorders} == "ACMG" ]; then
@@ -117,7 +112,6 @@ elif [[ ! -f ${disorders} ]]; then
 	echo -e "Can't find ${disorders}"
 	exit
 fi
->>>>>>> 538dd784390d6712391858a3a5e9a1caf222d6b6
 # Prompts user to specify file containing diseases and genes to search for
 while [ ${disorders} == 'walrus' ] || [[ ! -f ${disorders} ]]; do 
 	echo -e "\nThe default disease gene table is $(basename ${defaultdisorders}). If you want to use the default file, then enter nothing."
@@ -137,12 +131,9 @@ export disorders
 
 
 
-<<<<<<< HEAD
 
 
 
-=======
->>>>>>> 538dd784390d6712391858a3a5e9a1caf222d6b6
 # Prompts user to specify pedigree file
 while [ -z ${ped} ] || [[ ! -f ${ped} ]]; do 
 	echo -e "\nSpecify the full path to the pedigree file\n"
@@ -167,7 +158,6 @@ module load BCFtools
 allsamples=$($(which bcftools) query -l ${vcf})
 
 
-<<<<<<< HEAD
 
 
 
@@ -229,7 +219,6 @@ elif [[ ! -z ${samples} ]] && [[ -f ${samples} ]]; then
 # If they did not enter any information	
 elif [ -z ${samples} ]; then
 	inputsamples=${project}/allsamples.list	
-=======
 if [ -z ${samples} ]; then 
 	samples=walrus
 elif [ -f ${samples} ]; then
@@ -246,12 +235,10 @@ elif [ ${samples} != "all" ]; then
 			exit
 		fi
 	done
->>>>>>> 538dd784390d6712391858a3a5e9a1caf222d6b6
 fi
 
 
 
-<<<<<<< HEAD
 
 
 
@@ -259,7 +246,6 @@ fi
 
 
 #phase for recessive disorders
-=======
 # Prompts user to specify samples 
 while [[ ${samples} == walrus ]]; do 
 	read -e -p $'\nTo specify subjects to analyse, provide their IDs seperated by commas. \nIf the sample IDs are in a file, then provide the full path, or q to quit. \nOtherwise, leave blank to analyse all subjects in the VCF file and press [RETURN]: ' samples
@@ -286,7 +272,6 @@ while [[ ${samples} == walrus ]]; do
 done
 
 
->>>>>>> 538dd784390d6712391858a3a5e9a1caf222d6b6
 
 # This line allows the option to only look for variants that are of known phase only or variants that are both known and unknown phase
 while [[ ${includephase} != "yes" ]] && [[ ${includephase} != "no" ]]; do 
@@ -317,18 +302,15 @@ fi
 export haplotype 
 
 # Creates a variable that indicates the file that shows pedigree information for the cohort
-<<<<<<< HEAD
 #export ped=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/Meta/Ped.txt 
 
 # Creates a variable that indicates the file that has the information on the diseases that we are looking for
 #export disorders=/resource/domains/STUDENT/leeto433/diseases3.txt 
 
-=======
 #ped=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/Meta/Ped.txt 
 
 # Creates a variable that indicates the file that has the information on the diseases that we are looking for
 #disorders=/resource/domains/STUDENT/leeto433/diseases3.txt 
->>>>>>> 538dd784390d6712391858a3a5e9a1caf222d6b6
 
 
 #Creates a vcf variable that indicates which vcf file to use
@@ -367,8 +349,6 @@ fi
 
 echo -e "${allsamples}" > ${project}/allsamples.list
 
-<<<<<<< HEAD
-=======
 if [[ ! -z ${samples} ]] && [[ -f ${samples} ]]; then
 	cp ${samples} ${project}/selectedsamples.list
 # If they specify subject ID numbers
@@ -381,7 +361,6 @@ fi
 export inputsamples=${project}/selectedsamples.list
 echo -e "The sample IDs being investigated are \n$(cat ${inputsamples})"
 
->>>>>>> 538dd784390d6712391858a3a5e9a1caf222d6b6
 
 
 # make an array of the sample IDs that will be processed
@@ -390,7 +369,7 @@ SAMPLEARRAY=($(cat ${inputsamples} | tr "\n" " "))
 # the number of entries in samplearray - should be the number of samples to be analysed
 export NUMSAMPLES=${#SAMPLEARRAY[@]}
 
-#exit
+exit
 
 cmd1="sbatch -J Secondary_Sample_Analysis ${mailme} --array 1-${NUMSAMPLES}%6 ${BASEDIR}/secondary2.sl"
 secondary2_job=$(eval ${cmd1} | awk '{print $4}')
@@ -400,12 +379,9 @@ secondary2_job=$(eval ${cmd1} | awk '{print $4}')
 cmd2="sbatch -J Report_${project} --dependency=afterok:${secondary2_job} ${mailme} ${BASEDIR}/report.sl"
 eval ${cmd2}
 
-<<<<<<< HEAD
 echo "Sample array is ${SAMPLEARRAY[@]}"
 echo "${NUMSAMPLES}"
 echo "${mailme}"
-=======
 #echo "Sample array is ${SAMPLEARRAY[@]}"
 #echo "${NUMSAMPLES}"
 #echo "${mailme}"
->>>>>>> 538dd784390d6712391858a3a5e9a1caf222d6b6
