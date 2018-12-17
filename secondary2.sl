@@ -289,7 +289,7 @@ while read -u 3 -r diseasegene;do
 	cmd="$(which bcftools) filter --include '${minAFfilter} ${expectedBCSQ}' ${project}/${subject}/subset.vcf.gz -Oz -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants_included.vcf.gz" 
 	echo "${cmd}"
 	eval ${cmd} || exit 1$?
-	$(which bcftools) filter --exclude '${transcriptsearch}' ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants_included.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf
+	$(which bcftools) filter --exclude '(CSQ ~ "|HIGH|TCF25|" & GT[@subject.txt] = "alt")' ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants_included.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf
 		
 	if [ ${inheritance} == "AD" ] || [ ${inheritance} == "SD" ] || [ ${inheritance} == "XD" ]; then	
 		
