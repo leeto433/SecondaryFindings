@@ -102,8 +102,17 @@ while read -u 3 -r diseasegene;do
 	fi
 	
 	# selects lines with KP
+	if [[ ${conflicting} == "yes" ]]; then 
+		nonMNPconflict="(clinVar_nonMNP_CLNSIG ~ \"Conflicting_interpretations_of_pathogenicity\" | clinVar_nonMNP_CLNSIG ~ \"Pathogenic\" | clinVar_nonMNP_CLNSIG ~ \"Likely_pathogenic\")" 
+		MNPconflict="(clinVar_MNP_CLNSIG ~ \"Conflicting_interpretations_of_pathogenicity\" | clinVar_MNP_CLNSIG ~ \"Pathogenic\" | clinVar_MNP_CLNSIG ~ \"Likely_pathogenic\")" 
+	elif  [[ ${conflicting} == "no" ]]; then 
+		nonMNPconflict="(clinVar_nonMNP_CLNSIG ~ \"Pathogenic\" | clinVar_nonMNP_CLNSIG ~ \"Likely_pathogenic\")" 
+		MNPconflict="(clinVar_MNP_CLNSIG ~ \"Pathogenic\" | clinVar_MNP_CLNSIG ~ \"Likely_pathogenic\")" 
+	fi
 	if [[ ${variations} =~ "KP" ]]; then	
-		known="((clinVar_nonMNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}|\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}&\") & clinVar_nonMNP_CLNSIG ~ \"Pathogenic/i\") | (clinVar_MNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_MNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_MNP_GENEINFO ~ \":${ncbi_gene}|\") & clinVar_MNP_CLNSIG ~ \"Pathogenic/i\") & GT[@subject.txt] = \"alt\")"
+		##########
+		known="(((clinVar_nonMNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}|\" | clinVar_nonMNP_GENEINFO ~ \":${ncbi_gene}&\") & ${nonMNPconflict}) | (clinVar_MNP_CLNDISDB ~ \"OMIM:${mim_phenotype}\" & (clinVar_MNP_GENEINFO ~ \":${ncbi_gene}$\" | clinVar_MNP_GENEINFO ~ \":${ncbi_gene}|\") & ${MNPconflict})) & GT[@subject.txt] = \"alt\")"
+		##########
 	else
 		known=""
 	fi
@@ -284,18 +293,21 @@ while read -u 3 -r diseasegene;do
 	fi		
 	
 	
-				
-	# Filters for annotations from clinVar nonMNP file: OMIM phenotype number, and NCBI gene ID, and classification includes 'pathogenic', and subjects genotype must contain alternate allele. Also specifies input and output file
-	cmd="$(which bcftools) filter --include '${minAFfilter} ${expression}' ${project}/${subject}/subset.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf" 
-	echo "${cmd}"
-	eval ${cmd} || exit 1$?
+	if [ ! -f ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf.done ]; then 	
+		# Filters for annotations from clinVar nonMNP file: OMIM phenotype number, and NCBI gene ID, and classification includes 'pathogenic', and subjects genotype must contain alternate allele. Also specifies input and output file
+		cmd="$(which bcftools) filter --include '${minAFfilter} ${expression}' ${project}/${subject}/subset.vcf.gz -Ov -o ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf" 
+		echo "${cmd}"
+		eval ${cmd} || exit 1$?
+		touch ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf.done
+	fi
 		
 	if [ ${inheritance} == "AD" ] || [ ${inheritance} == "SD" ] || [ ${inheritance} == "XD" ]; then	
 		
 		# Generating information for the report
 		# bcftools query tool is extracting information from the vcf file and writing it to a .txt file
-		# The expression 'CSQ=%CSQ=CSQ' is an attempt to define the beginning and end of the CSQ annotation for future processing			
-		$(which bcftools) query -f '%CHROM\t%POS\t%REF\t%ALT\t%gnomADexomes_AF\t%gnomADgenomes_AF\t%clinVar_nonMNP_VariantType\t%clinVar_nonMNP_CLNHGVS\t%clinVar_nonMNP_CLNSIG\t%clinVar_MNP_VariantType\t%clinVar_MNP_CLNHGVS\t%clinVar_MNP_CLNSIG\tCSQ=%CSQ=CSQ\tBCSQ=%BCSQ=BCSQ[\t%TGT %AD]\n' ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf > ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.txt
+		# The expression 'CSQ=%CSQ=CSQ' is an attempt to define the beginning and end of the CSQ annotation for future processing	
+		# Having trouble determining whether an individual has both the variants required for a BCSQ consequence		
+		$(which bcftools) query -f '%CHROM\t%POS\t%REF\t%ALT\t%gnomADexomes_AF\t%gnomADgenomes_AF\t%clinVar_nonMNP_VariantType\t%clinVar_nonMNP_CLNHGVS\t%clinVar_nonMNP_CLNSIG\t%clinVar_MNP_VariantType\t%clinVar_MNP_CLNHGVS\t%clinVar_MNP_CLNSIG\tCSQ=%CSQ=CSQ\tBCSQ=%BCSQ=BCSQ[\t%TGT %AD][\t%BCSQ %TBCSQ]\n' ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.vcf > ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.txt
 
 		if [ -s ${project}/${subject}/${category}/${hgnc_symbol}/selectedvariants.txt ]; then
 			echo -e "${acmg_disease} ${hgnc_symbol} ${expandedinheritance} ${expandedvariations}" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
@@ -341,6 +353,7 @@ while read -u 3 -r diseasegene;do
 			for i in $(echo "${bcsq}" | tr "," " "); do
 				if [ $count == 0 ]; then
 					echo -e "\tHaplotype aware consequences (BCSQ)" >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
+					
 				fi
 				echo -e "\t\t${i}" | grep "^[^|]*|${hgnc_symbol}|" | tr '|' '\t' >> ${project}/${subject}/${category}/${hgnc_symbol}/report.txt
 				let "count++"

@@ -36,10 +36,13 @@ Optional:
 -b	To include compound variants using haplotype aware BCFtools BCSQ caller, 
 	type yes.
 	To exclude them, type no. 
+
+-c	To include the CLNSIG value of 'Conflicting_interpretations_of_pathogenicity' 
+	in Known Pathogenic variants, type yes. To exclude them, type no. 
 "
 }
 
-while getopts ":v:d:p:s:i:hb:" OPTION; do 
+while getopts ":v:d:p:s:i:hb:c:" OPTION; do 
 	case $OPTION in 
 		v) 	
 			export vcf="${OPTARG}"
@@ -62,6 +65,9 @@ while getopts ":v:d:p:s:i:hb:" OPTION; do
 		h)
 			usage
 			exit 0
+			;;
+		c) 
+			export conflicting="${OPTARG}"
 			;;
 		\?)
 			echo -e "\n**************\nInvalid option: ${OPTARG}\nFor valid options, use -h option\n**************\n"
@@ -226,20 +232,18 @@ elif [[ ${haplotype} == "no" ]]; then
 fi
 export haplotype 
 
-# Creates a variable that indicates the file that shows pedigree information for the cohort
-#ped=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/Meta/Ped.txt 
-
-# Creates a variable that indicates the file that has the information on the diseases that we are looking for
-#disorders=/resource/domains/STUDENT/leeto433/diseases3.txt 
-
-
-#Creates a vcf variable that indicates which vcf file to use
-#export vcf=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/GRCh37/VariantCalls/AV5UTRs/20180505_AV5UTRs_VariantCalls/20180505_AV5UTRs_VariantCalls_Split_Annotated_1/20180505_AV5UTRs_VariantCalls_Split_ann.vcf.gz
-#export samples="3075,3447,3690,3412"
-# export vcf=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/GRCh37/VariantCalls/SeqCapEZ2/20180517_SeqCapEZ2_VariantCalls/20180517_SeqCapEZ2_VariantCalls_Split_Annotated_1/20180517_SeqCapEZ2_VariantCalls_Split_ann.vcf.gz
-# export samples="1203"
-# export vcf=/mnt/hcs/WCHP_Clinical_Genetics/SequenceData/GRCh37/VariantCalls/Nexteraexome37Mb/20180518_Nextera37Mb_VariantCalls/20180518_Nextera37Mb_VariantCalls_Split_Annotated_4/20180518_Nextera37Mb_VariantCalls_Split_ann.vcf.gz 
-# export samples="2973" 
+# Ask if they want to get conflicting interpretations of pathogenicity 
+while [[ ${conflicting} != "yes" ]] && [[ ${conflicting} != "no" ]]; do
+	echo -e "\nDo you want to include \"Conflicting_interpretations_of_pathogenicity\" from CLNSIG as known pathogenic variants?"
+	read -e -p "Type yes to include, or no to exclude them, or press q to quit and press [RETURN]: " conflicting
+	if [[ ${conflicting} == "q" ]]; then exit; fi
+done
+if [[ ${conflicting} == "yes" ]]; then
+	echo -e "\nConflicting interpretations of pathogenicity will be included\n"
+elif [[ ${conflicting} == "no" ]]; then
+	echo -e "\nConflicting interpretations of pathogenicity will be excluded\n"
+fi
+export conflicting
 
 # if the email variable has not been previously been specified, then try to find the email address for the the user from the /etc/slurm/userlist.txt file
 if [ -z ${email} ]; then
