@@ -32,17 +32,20 @@ Optional:
 -i 	To include unphased variants when considering compound heterozygotes for recessive diseases,
 	type yes. 
 	To exclude unphased variants, type no. 
-	
--b	To include compound variants using haplotype aware BCFtools BCSQ caller, 
-	type yes.
-	To exclude them, type no. 
 
 -c	To include the CLNSIG value of 'Conflicting_interpretations_of_pathogenicity' 
 	in Known Pathogenic variants, type yes. To exclude them, type no. 
+	
+-a	To filter out variants with allelic bias, set a threshold value between
+	0 and 1, eg. 0.2 will only include variants where the ALT allele comprises
+	more than 20% of the reads.
+
+-b	To filter out variants with low read depth, set a threshold value. 
+	Eg. 10 sets the minimum depth to 10 reads.
 "
 }
 
-while getopts ":v:d:p:s:i:hb:c:" OPTION; do 
+while getopts ":v:d:p:s:i:hc:a:b:" OPTION; do 
 	case $OPTION in 
 		v) 	
 			export vcf="${OPTARG}"
@@ -59,15 +62,18 @@ while getopts ":v:d:p:s:i:hb:c:" OPTION; do
 		i)
 			export includephase="${OPTARG}"
 			;;
-		b)
-			export haplotype="${OPTARG}"
-			;;
 		h)
 			usage
 			exit 0
 			;;
 		c) 
 			export conflicting="${OPTARG}"
+			;;
+		a)
+			export allelebias="${OPTARG}"
+			;;
+		b)
+			export readdepth="${OPTARG}"
 			;;
 		\?)
 			echo -e "\n**************\nInvalid option: ${OPTARG}\nFor valid options, use -h option\n**************\n"
@@ -219,19 +225,6 @@ elif [[ ${includephase} == "no" ]]; then
 fi
 export includephase # yes means include unphased. no means do not include unphased variants. 
 
-# Ask if they want to use haplotype aware calls (BCFtools CSQ annotation)
-while [[ ${haplotype} != "yes" ]] && [[ ${haplotype} != "no" ]]; do
-	echo -e "\nDo you want to include consequences for compound variants, as determined by BCFtools haplotype aware caller that provides BCSQ annotations?"
-	read -e -p "Type yes to include compound variants, or no to exclude them, or press q to quit and press [RETURN]: " haplotype
-	if [[ ${haplotype} == "q" ]]; then exit; fi
-done
-if [[ ${haplotype} == "yes" ]]; then
-	echo -e "\nCompound variants will be included\n"
-elif [[ ${haplotype} == "no" ]]; then
-	echo -e "\nCompound variants will be excluded\n"
-fi
-export haplotype 
-
 # Ask if they want to get conflicting interpretations of pathogenicity 
 while [[ ${conflicting} != "yes" ]] && [[ ${conflicting} != "no" ]]; do
 	echo -e "\nDo you want to include \"Conflicting_interpretations_of_pathogenicity\" from CLNSIG as known pathogenic variants?"
@@ -303,7 +296,7 @@ export NUMSAMPLES=${#SAMPLEARRAY[@]}
 
 #exit
 
-cmd1="sbatch -J Secondary_Sample_Analysis ${mailme} --array 1-${NUMSAMPLES}%6 ${BASEDIR}/secondary2.sl"
+cmd1="sbatch -J Secondary_Sample_Analysis ${mailme} --array 1-${NUMSAMPLES}%20 ${BASEDIR}/secondary2.sl"
 secondary2_job=$(eval ${cmd1} | awk '{print $4}')
 
 #exit

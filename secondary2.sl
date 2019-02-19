@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name	Secondary
-#SBATCH --time		02:00:00
+#SBATCH --time		48:00:00
 #SBATCH --mem		1G
-#SBATCH --cpus-per-task	1
+#SBATCH --cpus-per-task	2
 #SBATCH --error		slurm/subject-%A_%a-%j.out
 #SBATCH --output	slurm/subject-%A_%a-%j.out	
 # This script is to run across a VCF and find secondary findings for each individual
@@ -48,11 +48,24 @@ if [ ! -z ${father} ]; then
 	samples=${samples},${father}
 fi
 
+#Creating subject.txt file
+echo -e "${subject}" > ${project}/${subject}/subject.txt
+
+# If allelic bias threshold has not been set, then set allelic bias threshold to zero, aka no exclusion based on allelic bias
+if [ -z ${allelebias} ]; then 
+	allelebias="0"
+fi
+
+#If read depth threshold has not been set, then set read depth threshold to one, aka no exclusion based on read depth
+if [ -z ${readdepth} ]; then 
+	readdepth="1"
+fi
+
 # Updates jobname on Slurm so we can see which subject we are processing
 scontrol update jobid=${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID} jobname=Secondary_${subject}_subsettingVCF
 	
 if [ ! -f ${project}/${subject}/subset.vcf.gz.done ]; then
-	cmd="$(which bcftools) view -Oz -o ${project}/${subject}/subset.vcf.gz -s ${samples} ${vcf}"
+	cmd="$(which bcftools) view --threads 1 -e 'clinVar_nonMNP_CLNSIG ~ \"Benign\" | clinVar_nonMNP_CLNSIG ~ \"Likely_benign\" | FORMAT/AD[@subject.txt:1]/(FORMAT/AD[@subject.txt:0]+FORMAT/AD[@subject.txt:1]) < ${allelebias} | (FORMAT/AD[@subject.txt:0] = 0 & FORMAT/AD[@subject.txt:1] = 0) | FORMAT/DP[@subject.txt] < ${readdepth}' -Oz -o ${project}/${subject}/subset.vcf.gz -s ${samples} ${vcf}"
 	echo "${cmd}"
 	eval ${cmd} || exit 1$? 
 	$(which bcftools) index ${project}/${subject}/subset.vcf.gz && touch ${project}/${subject}/subset.vcf.gz.done
@@ -137,12 +150,12 @@ while read -u 3 -r diseasegene;do
 			transcriptsearch="(CSQ ~ \"|HIGH|${hgnc_symbol}|\" & GT[@subject.txt] = \"alt\")"
 			
 		fi
-		expectedBCSQ=""
+		#expectedBCSQ=""
 		# Now look for compound variants using BCSQ
-		if [ ${haplotype} == "yes" ]; then	
-			expectedBCSQ=" | (INFO/BCSQ[*] ~ \"^[^\*]*frameshift\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_acceptor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_donor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_gained\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*start_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_ablation\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_amplification\.*|[${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\") & FORMAT/BCSQ[@subject.txt] > 0"
-		fi
-		expected="(${transcriptsearch}${expectedBCSQ})"
+		#if [ ${haplotype} == "yes" ]; then	
+		#	expectedBCSQ=" | (INFO/BCSQ[*] ~ \"^[^\*]*frameshift\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_acceptor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*splice_donor\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_gained\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*start_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*stop_lost\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_ablation\.*|${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\" | INFO/BCSQ[*] ~ \"[^\*]*transcript_amplification\.*|[${hgnc_symbol}|[^|]*|[^|]*|[^|]*|[^|]*|[^|]*+\") & FORMAT/BCSQ[@subject.txt] > 0"
+		#fi
+		expected="${transcriptsearch}"
 	else
 		expected=""			
 	fi
